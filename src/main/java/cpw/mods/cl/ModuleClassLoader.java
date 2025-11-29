@@ -28,6 +28,33 @@ public class ModuleClassLoader extends ClassLoader {
     private final Map<String, ResolvedModule> packageLookup;
     private final Map<String, ClassLoader> parentLoaders;
     private ClassLoader fallbackClassLoader = ClassLoader.getPlatformClassLoader();
+    // Mohist+ start - Re-implement upstream patches
+    protected final List<ClassLoader> additionalSearchPath = new ArrayList<>();
+
+    @SuppressWarnings("unused") // Used by Mohist+ code
+    public void addChild(ClassLoader classLoader) {
+        this.additionalSearchPath.add(classLoader);
+    }
+
+    protected /*@Nullable*/ Class<?> loadClassFromAdditionalSearchPathOrNull(String name) {
+        for (ClassLoader classLoader : additionalSearchPath) {
+            try {
+                return classLoader.loadClass(name);
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        return null;
+    }
+    // Mohist+ end
+    // Mohist+ start - Attempt to find class from application class loader if all SJH attempts failed
+    protected Class<?> loadClassFromAppLoaderOrNull(String name) {
+        try {
+            ClassLoader.getSystemClassLoader().loadClass(name);
+        } catch (ClassNotFoundException ignored) {
+        }
+        return null;
+    }
+    // Mohist+ end
 
     public ModuleClassLoader(final String name, final Configuration configuration, final List<ModuleLayer> parentLayers) {
         super(name, null);
@@ -138,6 +165,8 @@ public class ModuleClassLoader extends ClassLoader {
                     }
                 }
             }
+            if (c == null) c = loadClassFromAdditionalSearchPathOrNull(name); // Mohist+ - Re-implement upstream patches
+            if (c == null) c = loadClassFromAppLoaderOrNull(name); // Mohist+ - Attempt to load class from application class loader if all SJH attempts failed
             if (c == null) throw new ClassNotFoundException(name);
             if (resolve) resolveClass(c);
             return c;
