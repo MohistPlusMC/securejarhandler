@@ -11,6 +11,7 @@ plugins {
 
 apply plugin: 'maven-publish'
 
+def actualVer = "2.1.10-mohist+" // Mohist+ - This is a patched version
 allprojects {
     apply plugin: 'java-library'
     apply plugin: 'eclipse'
@@ -21,7 +22,7 @@ allprojects {
         toolchain.languageVersion = JavaLanguageVersion.of(16)
         modularity.inferModulePath.set(true)
     }
-    version = gradleutils.getTagOffsetVersion()
+    version = actualVer // gradleutils.getTagOffsetVersion() // Mohist+ - This is a patched version
 
     repositories {
         mavenLocal()
@@ -112,7 +113,7 @@ compileTestJava {
 
 group = 'cpw.mods'
 
-version = gradleutils.getTagOffsetVersion()
+version = actualVer // gradleutils.getTagOffsetVersion() // Mohist+ - This is a patched version
 logger.lifecycle('Version: ' + version)
 
 ext.asmVersion = 9.3
@@ -124,9 +125,22 @@ dependencies {
     testRuntimeOnly('org.junit.jupiter:junit-jupiter-engine:5.8.+')
 }
 
+// Mohist+ start - Remove things that need Git
+/*
 changelog {
     fromTag "0.9"
 }
+*/
+subprojects {
+    afterEvaluate {
+        // noinspection ConfigurationAvoidance
+        var changelogTask = tasks.findByName("createChangelog")
+        if (changelogTask != null) {
+            changelogTask.enabled = false
+        }
+    }
+}
+// Mohist+ end
 
 task sourcesJar(type: Jar) {
     archiveClassifier = 'sources'
@@ -155,12 +169,15 @@ jar {
                 'Specification-Vendor': 'forge',
                 'Specification-Version': '1', // We are version 1 of ourselves
                 'Implementation-Title': project.name,
-                'Implementation-Version': "${project.version}+${System.getenv('BUILD_NUMBER')?:0}+${gradleutils.gitInfo.branch}.${gradleutils.gitInfo.abbreviatedId}",
+                'Implementation-Version': project.version, // "${project.version}+${System.getenv('BUILD_NUMBER')?:0}+${gradleutils.gitInfo.branch}.${gradleutils.gitInfo.abbreviatedId}", // Mohist+ - Remove things that need Git
                 'Implementation-Vendor':'forge',
-                'Implementation-Timestamp': java.time.Instant.now().toString(),
+                // Mohist+ start - Remove things that need Git
+                'Implementation-Timestamp': java.time.Instant.now().toString()/*,
                 'Git-Commit': gradleutils.gitInfo.abbreviatedId,
                 'Git-Branch': gradleutils.gitInfo.branch,
                 'Build-Number': "${System.getenv("BUILD_NUMBER")?:0}",
+                */
+                // Mohist+ end
         )
     }
 }
@@ -199,6 +216,6 @@ publishing {
         }
     }
     repositories {
-        maven gradleutils.getPublishingForgeMaven()
+        mavenLocal() // maven gradleutils.getPublishingForgeMaven() // Mohist+ - Setup JitPack-based building
     }
 }
